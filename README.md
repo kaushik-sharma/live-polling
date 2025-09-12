@@ -31,14 +31,6 @@ docker compose -f docker-compose-dev.yaml up --build
 
 This document provides an overview of the available API endpoints, their purposes, and usage details.
 
-## **Base URL**
-
-```
-/api
-```
-
----
-
 ## **Health Check**
 
 ### `GET /api/health/`
