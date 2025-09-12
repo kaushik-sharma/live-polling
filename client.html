@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Poll Live Results — Socket.IO Demo</title>
+    <style>
+      body {
+        font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial;
+        padding: 20px;
+        max-width: 900px;
+        margin: 0 auto;
+      }
+      h1 {
+        font-size: 1.2rem;
+        margin-bottom: 8px;
+      }
+      .controls {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 12px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      input[type="text"] {
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        min-width: 330px;
+      }
+      button {
+        padding: 8px 12px;
+        border-radius: 6px;
+        border: 1px solid #ccc;
+        background: #f7f7f8;
+        cursor: pointer;
+      }
+      button.primary {
+        background: #0366d6;
+        color: white;
+        border-color: #0366d6;
+      }
+      .status {
+        margin-left: 10px;
+        padding: 6px 10px;
+        border-radius: 6px;
+        background: #f0f0f0;
+        display: inline-block;
+      }
+      .status.connected {
+        background: #e6ffed;
+        border: 1px solid #baf0c9;
+        color: #04662f;
+      }
+      .status.disconnected {
+        background: #fff3cd;
+        border: 1px solid #ffe29a;
+        color: #7a5a00;
+      }
+      .panel {
+        border: 1px solid #eee;
+        border-radius: 8px;
+        padding: 12px;
+        background: white;
+        box-shadow: 0 1px 0 rgba(0, 0, 0, 0.03);
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 8px;
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 8px;
+        border-bottom: 1px solid #f0f0f0;
+      }
+      th {
+        background: #fafafa;
+        font-weight: 600;
+        font-size: 0.92rem;
+      }
+      .muted {
+        color: #666;
+        font-size: 0.9rem;
+      }
+      pre {
+        background: #fafafa;
+        padding: 8px;
+        border-radius: 6px;
+        overflow: auto;
+        max-height: 160px;
+      }
+      /* small highlight animation when votes change */
+      .highlight {
+        animation: highlight 700ms ease;
+      }
+      @keyframes highlight {
+        0% {
+          background: #fff3b0;
+        }
+        100% {
+          background: transparent;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Live Poll Viewer</h1>
+
+    <div class="controls">
+      <label for="pollId" class="muted">Poll ID</label>
+      <input
+        id="pollId"
+        type="text"
+        value="a74aa146-f44f-4a1a-97c8-96d57be2f8ad"
+      />
+      <button id="connectBtn" class="primary">Connect</button>
+      <button id="disconnectBtn">Disconnect</button>
+      <button id="joinBtn">Join Poll</button>
+      <button id="leaveBtn">Leave Poll</button>
+      <span id="status" class="status disconnected">disconnected</span>
+    </div>
+
+    <div class="panel">
+      <div
+        style="
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        "
+      >
+        <strong>Poll updates</strong>
+        <span id="lastUpdate" class="muted">no updates yet</span>
+      </div>
+
+      <div id="pollMeta" style="margin-top: 10px" class="muted">
+        Not joined to any poll.
+      </div>
+
+      <div id="optionsContainer" style="margin-top: 12px"></div>
+
+      <h3 style="margin-top: 14px">Raw payload (latest)</h3>
+      <pre id="rawPayload">—</pre>
+    </div>
+
+    <!-- Socket.IO client (CDN) -->
+    <script src="https://cdn.socket.io/4.6.1/socket.io.min.js"></script>
+    <script>
+      // Adjust if your server URL is different
+      const SERVER_URL = "http://localhost:3000";
+
+      // DOM
+      const connectBtn = document.getElementById("connectBtn");
+      const disconnectBtn = document.getElementById("disconnectBtn");
+      const joinBtn = document.getElementById("joinBtn");
+      const leaveBtn = document.getElementById("leaveBtn");
+      const pollIdInput = document.getElementById("pollId");
+      const statusEl = document.getElementById("status");
+      const optionsContainer = document.getElementById("optionsContainer");
+      const rawPayload = document.getElementById("rawPayload");
+      const lastUpdate = document.getElementById("lastUpdate");
+      const pollMeta = document.getElementById("pollMeta");
+
+      // Minimal client-side state
+      const pollState = {
+        pollId: null,
+        // options: Map<optionId, { id, votes, row, votesCell }>
+        options: new Map(),
+      };
+
+      // Create socket but don't auto connect; gives control
+      const socket = io(SERVER_URL, { autoConnect: false });
+
+      // connection lifecycle
+      socket.on("connect", () => {
+        statusEl.textContent = "connected";
+        statusEl.classList.remove("disconnected");
+        statusEl.classList.add("connected");
+        console.info("socket connected", socket.id);
+      });
+
+      socket.on("disconnect", (reason) => {
+        statusEl.textContent = "disconnected";
+        statusEl.classList.remove("connected");
+        statusEl.classList.add("disconnected");
+        console.info("socket disconnected", reason);
+        pollMeta.textContent = "Not joined to any poll.";
+        clearState();
+      });
+
+      socket.on("connect_error", (err) => {
+        console.error("connection error", err);
+        rawPayload.textContent =
+          "Connection error: " +
+          (err && err.message ? err.message : String(err));
+      });
+
+      // app events
+      socket.on("joined_poll", (data) => {
+        pollState.pollId = data.pollId;
+        pollMeta.textContent = `Joined poll: ${data.pollId}`;
+        console.info("joined_poll", data);
+        // optionally request a snapshot here (if your server supports it)
+        // socket.emit('get_poll_snapshot', { pollId: data.pollId });
+      });
+
+      socket.on("left_poll", (data) => {
+        if (pollState.pollId === data.pollId) clearState();
+        pollMeta.textContent = `Left poll: ${data.pollId}`;
+      });
+
+      // Expected payload: { pollId, optionId, voteCount }
+      socket.on("poll_updated", (payload) => {
+        // Quick validation
+        if (
+          !payload ||
+          !payload.pollId ||
+          !payload.optionId ||
+          typeof payload.voteCount !== "number"
+        ) {
+          console.warn("Unexpected poll_updated payload", payload);
+          rawPayload.textContent = JSON.stringify(payload, null, 2);
+          lastUpdate.textContent = new Date().toLocaleTimeString();
+          return;
+        }
+
+        // Update UI & state
+        rawPayload.textContent = JSON.stringify(payload, null, 2);
+        lastUpdate.textContent = new Date().toLocaleTimeString();
+
+        // If not joined to this poll, still show pollId in meta
+        if (!pollState.pollId) {
+          pollState.pollId = payload.pollId;
+          pollMeta.textContent = `Viewing poll: ${payload.pollId} (no join recorded)`;
+        }
+
+        if (pollState.pollId !== payload.pollId) {
+          // the client is viewing a different poll; ignore or handle as needed
+          console.info("Received update for different poll", payload.pollId);
+          return;
+        }
+
+        upsertOptionCount(payload.optionId, payload.voteCount);
+      });
+
+      socket.on("error", (err) => {
+        console.error("socket error event", err);
+        rawPayload.textContent =
+          "Socket error: " + (err && err.message ? err.message : String(err));
+      });
+
+      // UI actions
+      connectBtn.addEventListener("click", () => {
+        if (!socket.connected) socket.connect();
+      });
+
+      disconnectBtn.addEventListener("click", () => {
+        if (socket.connected) socket.disconnect();
+      });
+
+      joinBtn.addEventListener("click", () => {
+        const pollId = pollIdInput.value.trim();
+        if (!pollId) return alert("Enter a pollId first.");
+        socket.emit("join_poll", { pollId });
+      });
+
+      leaveBtn.addEventListener("click", () => {
+        const pollId = pollIdInput.value.trim();
+        if (!pollId) return;
+        socket.emit("leave_poll", { pollId });
+      });
+
+      // ---------- helpers ----------
+
+      function clearState() {
+        pollState.pollId = null;
+        pollState.options.forEach((v) => {
+          if (v.row && v.row.parentNode) v.row.remove();
+        });
+        pollState.options.clear();
+        optionsContainer.innerHTML = "";
+        rawPayload.textContent = "—";
+        lastUpdate.textContent = "no updates yet";
+      }
+
+      // ensure table exists and return tbody
+      function ensureTable() {
+        let table = optionsContainer.querySelector("table");
+        if (table) return table.querySelector("tbody");
+
+        table = document.createElement("table");
+        const thead = document.createElement("thead");
+        thead.innerHTML =
+          "<tr><th class='muted'>Option ID</th><th>Vote Count</th></tr>";
+        table.appendChild(thead);
+
+        const tbody = document.createElement("tbody");
+        table.appendChild(tbody);
+        optionsContainer.innerHTML = "";
+        optionsContainer.appendChild(table);
+        return tbody;
+      }
+
+      // create or update the row for optionId (id first, votes second)
+      function upsertOptionCount(optionId, votes) {
+        const existing = pollState.options.get(optionId);
+        const tbody = ensureTable();
+
+        if (existing) {
+          // update votes cell
+          existing.votes = votes;
+          existing.votesCell.textContent = String(votes);
+          // small visual highlight
+          existing.votesCell.classList.remove("highlight");
+          // trigger reflow to restart animation
+          void existing.votesCell.offsetWidth;
+          existing.votesCell.classList.add("highlight");
+          return;
+        }
+
+        // create new row: Option ID first, Vote Count second
+        const tr = document.createElement("tr");
+
+        const idTd = document.createElement("td");
+        idTd.textContent = optionId;
+        idTd.className = "muted";
+
+        const votesTd = document.createElement("td");
+        votesTd.textContent = String(votes ?? 0);
+
+        tr.appendChild(idTd);
+        tr.appendChild(votesTd);
+        tbody.appendChild(tr);
+
+        pollState.options.set(optionId, {
+          id: optionId,
+          votes: votes ?? 0,
+          row: tr,
+          votesCell: votesTd,
+        });
+
+        // highlight new row briefly
+        votesTd.classList.add("highlight");
+      }
+
+      // render snapshot-style payloads (if you request full snapshot)
+      function renderOptionsSnapshot(snapshot) {
+        // snapshot: { id, text, options: [{ id, text, votes }] }
+        clearState();
+        pollState.pollId = snapshot.id;
+        pollMeta.textContent = `Joined poll: ${snapshot.id}`;
+        const tbody = ensureTable();
+        snapshot.options.forEach((opt) => {
+          const tr = document.createElement("tr");
+
+          const idTd = document.createElement("td");
+          idTd.textContent = opt.id ?? "";
+          idTd.className = "muted";
+
+          const votesTd = document.createElement("td");
+          votesTd.textContent = String(opt.votes ?? 0);
+
+          tr.appendChild(idTd);
+          tr.appendChild(votesTd);
+          tbody.appendChild(tr);
+
+          pollState.options.set(opt.id, {
+            id: opt.id,
+            votes: opt.votes,
+            row: tr,
+            votesCell: votesTd,
+          });
+        });
+      }
+    </script>
+  </body>
+</html>
