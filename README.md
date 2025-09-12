@@ -24,13 +24,11 @@ npm run prisma:generate
 
 # run
 docker compose -f docker-compose-dev.yaml up --build
-
----
+```
 
 # API Documentation
 
 This document provides an overview of the available API endpoints, their purposes, and usage details.
-```
 
 ## **Health Check**
 
@@ -40,55 +38,6 @@ This document provides an overview of the available API endpoints, their purpose
   Simple health check endpoint to verify if the API is running.
 
 * **Response (200 OK):**
-
-```json
-{
-  "status": "success",
-  "metadata": {
-    "message": "API is working."
-  },
-  "data": {
-    "uptime": "123s",
-    "timestamp": "2025-09-12T14:00:00.000Z"
-  }
-}
-```
-
----
-
-## **Authentication**
-
-Got it ✅ — here’s the cleaned-up `.md` file with only **request & response details** for each endpoint (no middlewares, controllers, or implementation details).
-
----
-
-# API Documentation
-
-This document describes the available API endpoints, their request formats, and example responses.
-
----
-
-## **Base URL**
-
-```
-/api
-```
-
----
-
-## **Health Check**
-
-### `GET /api/health/`
-
-* **Description:** Check if the API is running.
-
-#### Request
-
-```http
-GET /api/health/
-```
-
-#### Response (200 OK)
 
 ```json
 {
