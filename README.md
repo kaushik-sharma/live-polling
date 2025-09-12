@@ -30,6 +30,7 @@ docker compose -f docker-compose-dev.yaml up --build
 # API Documentation
 
 This document provides an overview of the available API endpoints, their purposes, and usage details.
+```
 
 ## **Health Check**
 
