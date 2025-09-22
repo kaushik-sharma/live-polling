@@ -8,6 +8,9 @@ export const Constants = {
     return $enum(Env).asValueOrThrow(process.env.ENV!);
   },
 
+  // BCrypt
+  saltRounds: 12,
+
   // Auth Tokens
   authTokenExpiryDurationInSec: Duration.fromObject({
     days: 30,
