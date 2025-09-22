@@ -81,4 +81,4 @@ export const PollRepository = {
   getVoteCount: (optionId: string) => {
     return PrismaService.client.vote.count({ where: { optionId } });
   },
-};
+} as const;

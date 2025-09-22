@@ -30,4 +30,4 @@ export const UserRepository = {
       select: { id: true, passwordHash: true },
     });
   },
-};
+} as const;

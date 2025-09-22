@@ -92,4 +92,4 @@ export const AuthController = {
       data: { refreshToken },
     });
   }),
-};
+} as const;

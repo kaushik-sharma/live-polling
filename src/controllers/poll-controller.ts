@@ -99,4 +99,4 @@ export const PollController = {
       metadata: { message: "Vote cast successful." },
     });
   }),
-};
+} as const;
