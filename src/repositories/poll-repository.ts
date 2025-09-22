@@ -28,6 +28,7 @@ export const PollRepository = {
     try {
       await PrismaService.client.vote.create({ data: voteData });
     } catch (err) {
+      // Check if the vote already exists
       if (
         err instanceof Prisma.PrismaClientKnownRequestError &&
         err.code === "P2002"
@@ -46,7 +47,7 @@ export const PollRepository = {
           },
         });
 
-        // Create new poll only if different option selected compared to previous
+        // Create a new vote only when the selected option differs from the previous one
         if (existingVote!.optionId !== optionId) {
           await PrismaService.client.vote.create({ data: voteData });
         }

@@ -17,7 +17,7 @@ const passwordValidation = z
   .trim()
   .nonempty({ message: "Password must not be empty." })
   .min(8, { message: "Password must be at least 8 characters." })
-  .max(12, { message: "Password must be at most 12 characters." });
+  .max(20, { message: "Password must be at most 20 characters." });
 
 export const signUpSchema = z.object({
   name: nameValidation,
