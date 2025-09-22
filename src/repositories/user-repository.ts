@@ -1,6 +1,6 @@
-import { Prisma, User } from "../generated/prisma";
-import { CustomError } from "../middlewares/error-middlewares";
-import { PrismaService } from "../services/prisma-service";
+import { Prisma, User } from "@prisma/client";
+import { CustomError } from "../middlewares/error-middlewares.js";
+import { PrismaService } from "../services/prisma-service.js";
 
 export const UserRepository = {
   createUser: async (

@@ -1,6 +1,6 @@
 import { RequestHandler } from "express";
 
-import { Prisma } from "../generated/prisma/index.js";
+import { Prisma } from "@prisma/client";
 import { asyncHandler } from "../helpers/async-handler.js";
 import {
   signInSchema,

@@ -1,5 +1,5 @@
-import { Prisma } from "../generated/prisma";
-import { PrismaService } from "../services/prisma-service";
+import { Prisma } from "@prisma/client";
+import { PrismaService } from "../services/prisma-service.js";
 
 export const PollRepository = {
   createPoll: async (

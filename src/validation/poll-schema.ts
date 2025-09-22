@@ -1,5 +1,6 @@
 import { z } from "zod";
-import { Constants } from "../constants/constants";
+
+import { Constants } from "../constants/constants.js";
 
 export const pollSchema = z.object({
   text: z
