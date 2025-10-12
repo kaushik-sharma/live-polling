@@ -1,7 +1,7 @@
 import Redis from "ioredis";
 import RedisStore from "rate-limit-redis";
 
-import logger from "../utils/logger.js";
+import { logger } from "../utils/logger.js";
 
 let _client: Redis;
 
